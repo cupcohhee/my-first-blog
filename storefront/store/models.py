@@ -37,7 +37,7 @@ class Customer(models.Model):
     MEMBERSHIP_Glod = 'G' 
 
     MEMBERSHIP_CHOICES = [
-        ('B','Bronze'),
+        ('B','Bronze'), 
         ('S','Silver'),
         ('G','Glod')
     ]
@@ -47,7 +47,11 @@ class Customer(models.Model):
     phone = models.CharField(max_length=255)
     birth_date = models.DateField(null = True)
     membership = models.CharField(max_length = 1, choices = MEMBERSHIP_CHOICES, default = MEMBERSHIP_BRONZE)
-
+    class Meta:
+        db_table = 'store_customers'
+        indexes = [
+            models.Index(fields=['last_name','first_name'])
+        ]
 class Order(models.Model):
 
     placed_at = models.DateTimeField(auto_now_add= True)
