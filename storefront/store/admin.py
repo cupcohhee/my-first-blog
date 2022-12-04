@@ -1,76 +1,115 @@
-from collections import Counter
-from itertools import count
-from django.contrib import admin
-from django.db.models import Count
-from django.utils.html import format_html,urlencode
+from django.contrib import admin, messages
+from django.db.models.aggregates import Count
+from django.db.models.query import QuerySet
+from django.utils.html import format_html, urlencode
 from django.urls import reverse
-
-
-
-# Register your models here.
 from . import models
-@admin.register(models.Product)    ## register modles in admin site  and show unit price
+
+
+class InventoryFilter(admin.SimpleListFilter):
+    title = 'inventory'
+    parameter_name = 'inventory'
+
+    def lookups(self, request, model_admin):
+        return [
+            ('<10', 'Low')
+        ]
+
+    def queryset(self, request, queryset: QuerySet):
+        if self.value() == '<10':
+            return queryset.filter(inventory__lt=10)
+
+
+@admin.register(models.Product)
 class ProductAdmin(admin.ModelAdmin):
-    list_display = ['title','unit_price','inventory_status','collection']
+    autocomplete_fields = ['collection']
+    prepopulated_fields = {
+        'slug': ['title']
+    }
+    actions = ['clear_inventory']
+    list_display = ['title', 'unit_price',
+                    'inventory_status', 'collection_title']
     list_editable = ['unit_price']
-    @admin.display(ordering='inventory')   # Sort the list by inventory 
-    def inventory_status(self,product):    # let inventory < 10 show "Low " other show "Good "
+    list_filter = ['collection', 'last_update', InventoryFilter]
+    list_per_page = 10
+    list_select_related = ['collection']
+    search_fields = ['title']
+
+    def collection_title(self, product):
+        return product.collection.title
+
+    @admin.display(ordering='inventory')
+    def inventory_status(self, product):
         if product.inventory < 10:
-            return "Low"
-        else:
-            return "Good"
-   
+            return 'Low'
+        return 'OK'
 
-@admin.register(models.Customer)
-class CustomerAdmin(admin.ModelAdmin):                                           # Find one customers's all information of id
-    list_display = ['first_name','last_name','membership','order_amount']
-    list_editable=['membership']
-    @admin.display(ordering='order_amount')                                     # order customer by order_amount
-
-    def order_amount(self,customer):                                            # apply http://127.0.0.1:8000/admin/store/order/?customer__id=11   search all order with id = 11
-        url = (
-            reverse('admin:store_order_changelist')
-            +'?'
-            +urlencode({
-                'customer__id':str(customer.id)
-            })
+    @admin.action(description='Clear inventory')
+    def clear_inventory(self, request, queryset):
+        updated_count = queryset.update(inventory=0)
+        self.message_user(
+            request,
+            f'{updated_count} products were successfully updated.',
+            messages.ERROR
         )
-        return format_html('<a href="{}">{}</a>',url,customer.order_amount)             #  use this format to link to other page
-    def get_queryset(self, request):
-        return super().get_queryset(request).annotate(
-            order_amount = Count('order')
-        )
-    
-    
-
-@admin.register(models.Order)
-class OrderAdmin(admin.ModelAdmin):
-    list_display = ['id','placed_at','order_detail']
-    list_select_related = ['customer']                  # preorder same use as "selected realted" in query
-    def order_detail(self,order):
-            return order.customer
 
 
 @admin.register(models.Collection)
 class CollectionAdmin(admin.ModelAdmin):
-    list_display = ['title','products_count']
+    autocomplete_fields = ['featured_product']
+    list_display = ['title', 'products_count']
+    search_fields = ['title']
 
     @admin.display(ordering='products_count')
-    def products_count(self,collection):
-        url =( 
-            reverse('admin:store_product_changelist')             # filter format is http://127.0.0.1:8000/admin/store/product/?collection__id=1   apply all collection =1 prodcut
-            +'?' 
-            +urlencode({
-                'collection__id': str(collection.id)                       
-            }
+    def products_count(self, collection):
+        url = (
+            reverse('admin:store_product_changelist')
+            + '?'
+            + urlencode({
+                'collection__id': str(collection.id)
+            }))
+        return format_html('<a href="{}">{} Products</a>', url, collection.products_count)
 
-            ) )           # admin : app_models_page     use this format
-        return format_html('<a href="{}">{}</a>',url,collection.products_count)
-    
-    def get_queryset(self, request):                            # Show the number of product in collectons by override query set
-        return super().get_queryset(request).annotate(  
-            products_count = Count('product')
-            )
+    def get_queryset(self, request):
+        return super().get_queryset(request).annotate(
+            products_count=Count('product')
+        )
 
-# admin.site.register(models.Customer)
-# admin.site.register(models.Product,ProductAdmin)
+
+@admin.register(models.Customer)
+class CustomerAdmin(admin.ModelAdmin):
+    list_display = ['first_name', 'last_name',  'membership', 'orders']
+    list_editable = ['membership']
+    list_per_page = 10
+    ordering = ['first_name', 'last_name']
+    search_fields = ['first_name__istartswith', 'last_name__istartswith']
+
+    @admin.display(ordering='orders_count')
+    def orders(self, customer):
+        url = (
+            reverse('admin:store_order_changelist')
+            + '?'
+            + urlencode({
+                'customer__id': str(customer.id)
+            }))
+        return format_html('<a href="{}">{} Orders</a>', url, customer.orders_count)
+
+    def get_queryset(self, request):
+        return super().get_queryset(request).annotate(
+            orders_count=Count('order')
+        )
+
+
+class OrderItemInline(admin.TabularInline):
+    autocomplete_fields = ['product']
+    min_num = 1
+    max_num = 10
+    model = models.OrderItem
+    extra = 0
+
+
+@admin.register(models.Order)
+class OrderAdmin(admin.ModelAdmin):
+    autocomplete_fields = ['customer']
+    inlines = [OrderItemInline]
+    list_display = ['id', 'placed_at', 'customer']
