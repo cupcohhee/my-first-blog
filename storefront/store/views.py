@@ -10,8 +10,8 @@ from rest_framework.mixins import ListModelMixin,CreateModelMixin,UpdateModelMix
 from django.db.models import Count
 
 
-from .models import Product,Collection,OrderItem
-from .serializers import ProductSerializers,CollectionSerializers
+from .models import Product,Collection,OrderItem,Review
+from .serializers import ProductSerializers,CollectionSerializers,ReviewSerializers
 
 class ProductViewSet(ModelViewSet):
     queryset = Product.objects.all()
@@ -33,6 +33,13 @@ class CollectionViewSet(ModelViewSet):
             return Response({'error':'Collection can not be delete'})
         return super().destroy(request, *args, **kwargs)
 
+class ReivewViewSet(ModelViewSet):
+    serializer_class = ReviewSerializers
+
+    def get_queryset(self):
+        return Review.objects.filter(product_id = self.kwargs['product_pk'])
+    def get_serializer_context(self):
+        return {'product_id':self.kwargs['product_pk']}
 
 
   # def delete(self, request,pk):

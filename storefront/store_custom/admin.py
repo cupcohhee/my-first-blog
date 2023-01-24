@@ -2,12 +2,12 @@ from store.models import Product
 from django.contrib import admin
 from django.contrib.contenttypes.admin import GenericTabularInline
 from store.admin import ProductAdmin
-from tags.models import TaggedItem
+from tags.models import TagItem
 
 
 class TagInline(GenericTabularInline):
     autocomplete_fields = ['tag']
-    model = TaggedItem
+    model = TagItem
 
 
 class CustomProductAdmin(ProductAdmin):

@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from store.models import Product,Collection
+from store.models import Product,Collection,Review
 from decimal import Decimal
 
 class CollectionSerializers(serializers.ModelSerializer):
@@ -37,3 +37,14 @@ class CollectionSerializers(serializers.ModelSerializer):
         model = Collection
         fields = ['id','title','products_count']
     products_count = serializers.IntegerField(read_only = True)
+
+class ReviewSerializers(serializers.ModelSerializer):
+    class Meta:
+        model = Review
+        fields = ['id','date','name','description']
+    def create(self, validated_data):
+        product_id = self.context['product_id']                 # self.context were used to collect data from ViewSets method get_seralizer_context
+        return Review.objects.create(product_id = product_id,**validated_data)            # validated_ data is the JSON content
+
+
+    
