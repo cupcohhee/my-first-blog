@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from store.models import Product,Collection,Review
+from store.models import Product,Collection,Review,CartItem,Cart
 from decimal import Decimal
 
 class CollectionSerializers(serializers.ModelSerializer):
@@ -46,5 +46,35 @@ class ReviewSerializers(serializers.ModelSerializer):
         product_id = self.context['product_id']                 # self.context were used to collect data from ViewSets method get_seralizer_context
         return Review.objects.create(product_id = product_id,**validated_data)            # validated_ data is the JSON content
 
+class SimpleProductSerializers(serializers.ModelSerializer):
+    class Meta:
+        model = Product
+        fields = ['id','title','unit_price']
 
+
+
+class CartItemSerializers(serializers.ModelSerializer):
+    
+    product = SimpleProductSerializers(read_only = True)
+    total_price = serializers.SerializerMethodField()
+    
+    def get_total_price(self,cart_item:CartItem):
+        return cart_item.quantity * cart_item.product.unit_price
+    
+    class Meta:
+        model = CartItem
+
+        fields = ['id','product','quantity','total_price']
+
+class CartSerializers(serializers.ModelSerializer):
+    id = serializers.UUIDField(read_only = True)
+    items = CartItemSerializers(many = True,read_only = True)
+    cart_total_price = serializers.SerializerMethodField()
+
+    def get_cart_total_price(self,cart:Cart):
+        return sum([item.quantity * item.product.unit_price for item in cart.items.all()])
+    
+    class Meta:
+        model = Cart 
+        fields = ['id','items','cart_total_price']
     

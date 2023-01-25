@@ -10,8 +10,8 @@ from rest_framework.mixins import ListModelMixin,CreateModelMixin,UpdateModelMix
 from django.db.models import Count
 
 
-from .models import Product,Collection,OrderItem,Review
-from .serializers import ProductSerializers,CollectionSerializers,ReviewSerializers
+from .models import Product,Collection,OrderItem,Review,Cart
+from .serializers import ProductSerializers,CollectionSerializers,ReviewSerializers,CartItemSerializers,CartSerializers
 
 class ProductViewSet(ModelViewSet):
     queryset = Product.objects.all()
@@ -40,6 +40,14 @@ class ReivewViewSet(ModelViewSet):
         return Review.objects.filter(product_id = self.kwargs['product_pk'])
     def get_serializer_context(self):
         return {'product_id':self.kwargs['product_pk']}
+
+class CartViewSet(ModelViewSet):
+    queryset = Cart.objects.prefetch_related('items__product').all()
+    # queryset = Cart.objects.all()
+    serializer_class = CartSerializers
+
+# class ItemViewSet(ModelViewSet):
+
 
 
   # def delete(self, request,pk):
