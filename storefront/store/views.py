@@ -10,8 +10,8 @@ from rest_framework.mixins import ListModelMixin,CreateModelMixin,UpdateModelMix
 from django.db.models import Count
 
 
-from .models import Product,Collection,OrderItem,Review,Cart
-from .serializers import ProductSerializers,CollectionSerializers,ReviewSerializers,CartItemSerializers,CartSerializers
+from .models import CartItem, Product,Collection,OrderItem,Review,Cart
+from .serializers import AddItemSerializers, ProductSerializers,CollectionSerializers,ReviewSerializers,CartItemSerializers,CartSerializers, UpdateSerializers
 
 class ProductViewSet(ModelViewSet):
     queryset = Product.objects.all()
@@ -46,7 +46,23 @@ class CartViewSet(ModelViewSet):
     # queryset = Cart.objects.all()
     serializer_class = CartSerializers
 
-# class ItemViewSet(ModelViewSet):
+class ItemViewSet(ModelViewSet):
+    # queryset = CartItem.objects.all()
+    http_method_names = ['get','post','patch','delete']
+    
+    def get_serializer_class(self):
+        if self.request.method == 'POST':
+            return AddItemSerializers
+        elif self.request.method == 'PATCH':
+            return UpdateSerializers
+        return CartItemSerializers
+    
+    def get_serializer_context(self):
+        return {'cart_id': self.kwargs['cart_pk']}
+
+    def get_queryset(self):
+        return CartItem.objects.filter(cart_id = self.kwargs['cart_pk']).select_related('product')
+
 
 
 
